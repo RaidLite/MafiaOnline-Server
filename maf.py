@@ -1,20 +1,13 @@
-import random
+from random import randint
 
-
-def _shuffle_array(arr):
-    if len(arr) < 5:
-        return
-    obj2 = arr[0]
-    obj3 = arr[1]
-    arr[0] = arr[-1]
-    arr[-1] = obj2
-    arr[1] = arr[3]
-    arr[3] = obj3
-
-
-def _copy_dict(data):
-    return {k: v for k, v in data.items()}
-
+_shuffle_array = lambda arr: (
+    arr.__setitem__((0, 1, 3, -1), (arr[-1], arr[3], arr[1], arr[0]))
+    if len(arr) >= 5 else None
+)
+_obfuscate_for_send = lambda obj, shift=0: _encode(obj, shift)
+_copy_dict = lambda data: {k: v for k, v in data.items()}
+encode = lambda obj, shift=0: _encode(obj, shift)
+decode = lambda obj, shift=0: _decode(obj, shift, MafDecoder.shift)
 
 def _obfuscate_value(obj, shift):
     if isinstance(obj, (str, int, float)):
@@ -28,12 +21,11 @@ def _obfuscate_value(obj, shift):
         return new_list
     return obj
 
-
 def _encode(obj, shift=0):
     if isinstance(obj, dict):
         obj = _copy_dict(obj)
         if shift == 0:
-            shift = random.randint(100, 200)
+            shift = randint(100, 200)
         for key in list(obj.keys()):
             value = obj[key]
             new_key = _obfuscate_value(key, shift)
@@ -105,29 +97,19 @@ def _decode(obj, shift=0, base_shift=0):
         return obj
     return obj
 
-
 class MafSocket:
     _shift = 0
 
     def __init__(self, socket):
         self.socket = socket
 
-    def _obfuscate_for_send(self, obj, shift=0):
-        return _encode(obj, shift)
-
-    def deobfuscate(self, obj, shift=0):
-        return _decode(obj, shift, MafSocket._shift)
-
     def emit(self, event, *args):
         if args:
             args_list = list(args)
             if args_list:
-                args_list[0] = self._obfuscate_for_send(args_list[0], 0)
+                args_list[0] = _obfuscate_for_send(args_list[0], 0)
             return self.socket.emit(event, *args_list)
         return self.socket.emit(event)
-
-    def emit_plain(self, event, *args):
-        return self.socket.emit(event, *args)
 
     def on(self, event, listener):
         def wrapped(*args):
@@ -137,62 +119,23 @@ class MafSocket:
         self.socket.on(event, wrapped)
         return self
 
-    def once(self, event, listener):
-        return self.socket.once(event, listener)
-
-    def off(self):
-        return self.socket.off()
-
-    def off_event(self, event):
-        return self.socket.off(event)
-
-    def off_listener(self, event, listener):
-        return self.socket.off(event, listener)
-
-    def open(self):
-        return self.socket.connect()
-
-    def connect(self):
-        return self.socket.connect()
-
-    def send(self, *args):
-        return self.socket.send(*args)
-
-    def emit_with_ack(self, event, *args):
-        return self.socket.emit(event, *args)
-
-    def close(self):
-        return self.socket.disconnect()
-
-    def disconnect(self):
-        return self.socket.disconnect()
-
-    def is_connected(self):
-        return self.socket.connected
-
-    @staticmethod
-    def set_base_shift(i):
-        MafSocket._shift = i
-
-    @staticmethod
-    def set_shift_diff(i, i2):
-        MafSocket._shift = (i2 - i) + 150
-
-
-def encode(obj, shift=0):
-    return _encode(obj, shift)
-
-
-def decode(obj, shift=0):
-    return _decode(obj, shift, MafDecoder.shift)
+    emit_plain = lambda self, event, *args: self.socket.emit(event, *args)
+    deobfuscate = lambda self, obj, shift=0: _decode(obj, shift, MafSocket._shift)
+    once = lambda self, event, listener: self.socket.once(event, listener)
+    off = lambda self: self.socket.off()
+    off_event = lambda self, event: self.socket.off(event)
+    off_listener = lambda self, event, listener: self.socket.off(event, listener)
+    open = lambda self: self.socket.connect()
+    connect = lambda self: self.socket.connect()
+    send = lambda self, *args: self.socket.send(*args)
+    emit_with_ack = lambda self, event, *args: self.socket.emit(event, *args)
+    close = lambda self: self.socket.disconnect()
+    disconnect = lambda self: self.socket.disconnect()
+    is_connected = lambda self: self.socket.connected
+    set_base_shift = lambda i: setattr(MafSocket, '_shift', i)
+    set_shift_diff = lambda i, i2: setattr(MafSocket, '_shift', (i2 - i) + 150)
 
 class MafDecoder:
     shift = 0
-
-    @staticmethod
-    def set_base_shift(i):
-        MafDecoder.shift = i
-
-    @staticmethod
-    def set_shift_diff(i, i2):
-        MafDecoder.shift = (i2 - i) + 150
+    set_base_shift = lambda i: setattr(MafDecoder, 'shift', i)
+    set_shift_diff = lambda i, i2: setattr(MafDecoder, 'shift', (i2 - i) + 150)
